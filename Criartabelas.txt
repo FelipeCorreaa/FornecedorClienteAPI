@@ -1,0 +1,53 @@
+
+
+-- Tabela 'users'
+CREATE TYPE account_type_enum AS ENUM ('cliente', 'fornecedor');
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    account_type account_type_enum NOT NULL
+);
+
+-- Tabela 'clients'
+CREATE TABLE clients (
+    user_id INTEGER PRIMARY KEY,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    -- Adicione outros atributos específicos de clientes aqui
+);
+
+-- Tabela 'suppliers'
+CREATE TABLE suppliers (
+    user_id INTEGER PRIMARY KEY,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    -- Adicione outros atributos específicos de fornecedores aqui
+);
+
+-- Tabela 'products'
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    supplier_id INTEGER,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(user_id)
+);
+
+-- Tabela 'orders'
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    order_date DATE NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES clients(user_id)
+    -- Adicione outros atributos relacionados ao pedido aqui
+);
+
+-- Tabela 'order_details'
+CREATE TABLE order_details (
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
+    PRIMARY KEY (order_id, product_id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
