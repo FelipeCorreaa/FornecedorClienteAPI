@@ -1,40 +1,51 @@
-﻿using APIClienteFornecedor.Commands.APIClienteFornecedor.Commands;
+﻿using Microsoft.AspNetCore.Mvc;
+using APIClienteFornecedor.Commands.Pedido;
+using APIClienteFornecedor.Handlers.Pedido;
+using Microsoft.AspNetCore.Authorization;
+using APIClienteFornecedor.Commands;
+using APIClienteFornecedor.Commands.Produto;
+using APIClienteFornecedor.Handlers.Produto;
+using Npgsql;
+using System;
+using System.Data;
+using APIClienteFornecedor.Commands.APIClienteFornecedor.Commands;
 using APIClienteFornecedor.Commands.Usuario;
 using APIClienteFornecedor.Handlers.Usuario;
 using APIClienteFornecedor.Models;
 using APIClienteFornecedor.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Npgsql;
-using System;
-using System.Data;
-
-namespace APIClienteFornecedor.Controllers.Usuario
+using APIClienteFornecedor.Commands.Produto;
+namespace APIClienteFornecedor.Controllers.Pedido
 {
     [ApiController]
     [Route("[controller]")]
-    public class UsuarioController : ControllerBase
+    public class PedidoController : ControllerBase
     {
-        private readonly string _connectionString = "Host=localhost;Port=5432;Pooling=true;Database=ClientesFornecedoresAPI;User Id=postgres;Password=1234";
-        private readonly CriarUsuarioCommandHandler _criarUsuarioHandler;
-        private readonly AtualizarUsuarioCommandHandler _atualizarUsuarioHandler;
-        private readonly DeleteUsuarioCommandHandler _deleteUsuarioHandler;
+        private readonly CriarPedidoCommandHandler _criarPedidoHandler;
+        private readonly AtualizarPedidoCommandHandler _atualizarPedidoHandler;
+        private readonly DeletarPedidoCommandHandler _deletarPedidoHandler;
         private readonly IAuthenticationService _authenticationService;
 
-        public UsuarioController(
-            IAuthenticationService authenticationService,
-            CriarUsuarioCommandHandler criarUsuarioHandler,
-            AtualizarUsuarioCommandHandler atualizarUsuarioHandler,
-            DeleteUsuarioCommandHandler deleteUsuarioHandler)
+        public PedidoController(
+            CriarPedidoCommandHandler criarPedidoHandler,
+            AtualizarPedidoCommandHandler atualizarPedidoHandler,
+            DeletarPedidoCommandHandler deletarPedidoHandler,
+            IAuthenticationService authenticationService)
         {
+            _criarPedidoHandler = criarPedidoHandler;
+            _atualizarPedidoHandler = atualizarPedidoHandler;
+            _deletarPedidoHandler = deletarPedidoHandler;
             _authenticationService = authenticationService;
-            _criarUsuarioHandler = criarUsuarioHandler;
-            _atualizarUsuarioHandler = atualizarUsuarioHandler;
-            _deleteUsuarioHandler = deleteUsuarioHandler;
+        }
+
+        private bool ValidateToken(string token)
+        {
+            string storedToken = _authenticationService.ReadTokenFromFile();
+            return token == storedToken;
         }
 
         [HttpPost]
-        public IActionResult PostUsuario(CriarUsuarioCommand usuario)
+      
+        public IActionResult CriarPedido(CriarPedido pedido)
         {
             string authorizationHeader = Request.Headers["Authorization"].ToString();
 
@@ -47,11 +58,41 @@ namespace APIClienteFornecedor.Controllers.Usuario
             {
                 string token = authorizationHeader.Substring(7);
 
-                string storedToken = _authenticationService.ReadTokenFromFile();
-
-                if (token == storedToken)
+                if (ValidateToken(token))
                 {
-                    string mensagem = _criarUsuarioHandler.CriarUsuario(usuario.UserName, usuario.Email, usuario.Password, usuario.account_type);
+                    int pedidoId = _criarPedidoHandler.CriarPedido(pedido.ClienteId, pedido.DataPedido);
+                    return Ok($"Pedido criado com ID {pedidoId}");
+                }
+                else
+                {
+                    return Unauthorized("Token inválido.");
+                }
+            }
+            else
+            {
+                return Unauthorized("Esquema de autenticação inválido. Utilize o formato 'Bearer'.");
+            }
+        }
+
+        [HttpPut("{Id}")]
+       
+        public IActionResult AtualizarPedido(int Id, AtualizarPedido atualizarPedido)
+        {
+            string authorizationHeader = Request.Headers["Authorization"].ToString();
+
+            if (string.IsNullOrEmpty(authorizationHeader))
+            {
+                return Unauthorized("Token de autenticação não fornecido.");
+            }
+
+            if (authorizationHeader.StartsWith("Bearer "))
+            {
+                string token = authorizationHeader.Substring(7);
+
+                if (ValidateToken(token))
+                {
+                    string mensagem = _atualizarPedidoHandler.AtualizarPedido(Id, atualizarPedido.ClienteId, atualizarPedido.DataPedido);
+
                     return Ok(mensagem);
                 }
                 else
@@ -65,8 +106,9 @@ namespace APIClienteFornecedor.Controllers.Usuario
             }
         }
 
-        [HttpPut("{UserName}")]
-        public IActionResult PutUsuario(string UserName, AtualizarUsuarioCommand atualizarUsuarioCommand)
+        [HttpDelete("{Id}")]
+        
+        public IActionResult DeletarPedido(int Id)
         {
             string authorizationHeader = Request.Headers["Authorization"].ToString();
 
@@ -79,43 +121,10 @@ namespace APIClienteFornecedor.Controllers.Usuario
             {
                 string token = authorizationHeader.Substring(7);
 
-                string storedToken = _authenticationService.ReadTokenFromFile();
-
-                if (token == storedToken)
+                if (ValidateToken(token))
                 {
-                    string mensagem = _atualizarUsuarioHandler.AtualizarUsuario(atualizarUsuarioCommand.Id, atualizarUsuarioCommand.UserName, atualizarUsuarioCommand.Email, atualizarUsuarioCommand.Password, atualizarUsuarioCommand.account_type, UserName);
-                    return Ok(mensagem);
-                }
-                else
-                {
-                    return Unauthorized("Token inválido.");
-                }
-            }
-            else
-            {
-                return Unauthorized("Esquema de autenticação inválido. Utilize o formato 'Bearer'.");
-            }
-        }
+                    string mensagem = _deletarPedidoHandler.DeletarPedido(Id);
 
-        [HttpDelete("{UserName}")]
-        public IActionResult DeleteUsuario(string UserName)
-        {
-            string authorizationHeader = Request.Headers["Authorization"].ToString();
-
-            if (string.IsNullOrEmpty(authorizationHeader))
-            {
-                return Unauthorized("Token de autenticação não fornecido.");
-            }
-
-            if (authorizationHeader.StartsWith("Bearer "))
-            {
-                string token = authorizationHeader.Substring(7);
-
-                string storedToken = _authenticationService.ReadTokenFromFile();
-
-                if (token == storedToken)
-                {
-                    string mensagem = _deleteUsuarioHandler.ExcluirUsuario(UserName);
                     return Ok(mensagem);
                 }
                 else

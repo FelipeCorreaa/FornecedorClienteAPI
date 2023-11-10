@@ -15,5 +15,6 @@ namespace APIClienteFornecedor.Data
         }
 
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<Produto> Produtos { get; set; }
     }
 }

@@ -1,22 +1,29 @@
 ﻿using Npgsql;
 using System;
+using APIClienteFornecedor.Queries;
 using System.Data;
-using APIClienteFornecedor.Commands;
 
-namespace APIClienteFornecedor.Handlers
+namespace APIClienteFornecedor.Handlers.Usuario
 {
-    public class CriarUsuarioCommandHandler
+    public class DeleteUsuarioCommandHandler
     {
         private readonly string _connectionString;
 
-        public CriarUsuarioCommandHandler()
+        public DeleteUsuarioCommandHandler()
         {
             ConfigureConnection configureConnection = new ConfigureConnection();
             _connectionString = configureConnection.GetConnectionString();
         }
 
-        public void criarusurio(string UserName, string Email)
+        public string ExcluirUsuario(string UserName)
         {
+            // Verificar se o usuário com o UserName especificado existe
+            IConsultarUsuarioQueryHandler consultarUsuarioQueryHandler = new ConsultarUsuarioQueryHandler();
+            if (!consultarUsuarioQueryHandler.UsuarioExiste(UserName))
+            {
+                return "Usuário não encontrado.";
+            }
+
             using (var connection = new NpgsqlConnection(_connectionString))
             {
                 connection.Open();
@@ -25,13 +32,14 @@ namespace APIClienteFornecedor.Handlers
                 {
                     cmd.Connection = connection;
                     cmd.CommandType = CommandType.Text;
-                    cmd.CommandText = "INSERT INTO Usuario (UserName, Email) VALUES (@UserName, @Email)";
+                    cmd.CommandText = "DELETE FROM Usuario WHERE UserName = @UserName";
                     cmd.Parameters.AddWithValue("@UserName", UserName);
-                    cmd.Parameters.AddWithValue("@Email", Email);
 
                     cmd.ExecuteNonQuery();
                 }
             }
+
+            return "Usuário excluído com sucesso.";
         }
     }
 }
